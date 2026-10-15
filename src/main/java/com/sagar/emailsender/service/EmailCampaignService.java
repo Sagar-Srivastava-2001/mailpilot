@@ -187,6 +187,48 @@ public class EmailCampaignService {
         return new DraftResponse(imported.contacts().size(), created, failed, results);
     }
 
+    private String convertToHtml(String text) {
+        String safeText = text == null ? "" : text;
+
+        // Escape HTML characters to preserve text as text.
+        safeText = safeText
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;")
+                .replace("\r\n", "\n")
+                .replace("\r", "\n");
+
+        StringBuilder html = new StringBuilder();
+
+        html.append("""
+        <!DOCTYPE html>
+        <html>
+        <body style="
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #202124;
+        ">
+        <div style="max-width: 720px;">
+        """);
+
+        String[] paragraphs = safeText.split("\\n\\s*\\n");
+
+        for (String paragraph : paragraphs) {
+            html.append("<p style=\"margin: 0 0 16px;\">")
+                    .append(paragraph.replace("\n", "<br>"))
+                    .append("</p>");
+        }
+
+        html.append("</div></body></html>");
+
+        return html.toString();
+    }
+
     private MimeMessage buildMimeMessage(EmailContact contact, String subjectTemplate, String bodyTemplate,
                                          byte[] attachmentBytes, String attachmentFilename,
                                          String senderAddress) throws Exception {
@@ -195,7 +237,12 @@ public class EmailCampaignService {
         helper.setFrom(senderAddress);
         helper.setTo(contact.email());
         helper.setSubject(templateService.render(subjectTemplate, contact));
-        helper.setText(templateService.render(bodyTemplate, contact), false);
+        String plainBody =
+                templateService.render(bodyTemplate, contact);
+
+        String htmlBody = convertToHtml(plainBody);
+
+        helper.setText(plainBody, htmlBody);
         helper.addAttachment(attachmentFilename, new ByteArrayResource(attachmentBytes), "application/pdf");
         message.saveChanges();
         return message;
