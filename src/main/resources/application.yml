@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: email-excel-sender
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+
+app:
+  gmail:
+    credentials-file: ${GOOGLE_OAUTH_CREDENTIALS:./credentials.json}
+    token-dir: ${GMAIL_TOKEN_DIR:${user.home}/.email-excel-sender/tokens}
+    redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:8080/oauth2/callback}
+    from-address: ${GMAIL_FROM_ADDRESS:}
+  email:
+    batch-limit: ${EMAIL_BATCH_LIMIT:250}
+    delay-ms: ${EMAIL_DELAY_MS:300}

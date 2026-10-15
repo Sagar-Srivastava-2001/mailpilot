@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gmail Draft Creator</title>
+    <style>
+        :root { color-scheme: light; --ink:#162334; --muted:#657286; --line:#dce3eb; --panel:#fff; --bg:#f4f7fb; --blue:#2259c7; --blue-dark:#1647a5; --green:#18794e; --red:#b42318; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+        main { max-width:1120px; margin:38px auto; padding:0 22px 48px; }
+        .eyebrow { margin:0 0 8px; color:var(--blue); font-weight:750; font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
+        h1 { margin:0; font-size:clamp(28px,4vw,38px); letter-spacing:-.035em; }
+        .intro { max-width:760px; margin:10px 0 22px; color:var(--muted); }
+        .callout { display:flex; gap:12px; padding:14px 16px; border:1px solid #c8d8f5; border-radius:12px; background:#edf4ff; margin-bottom:22px; }
+        .callout strong { display:block; margin-bottom:2px; }
+        .layout { display:grid; grid-template-columns:minmax(0,1.03fr) minmax(0,.97fr); gap:20px; align-items:start; }
+        section { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:0 6px 20px rgba(25,45,75,.035); }
+        h2 { margin:0 0 14px; font-size:18px; letter-spacing:-.015em; }
+        h3 { margin:20px 0 10px; font-size:15px; }
+        label { display:block; font-weight:650; font-size:13px; margin:15px 0 7px; }
+        input[type=file],input[type=text],textarea { width:100%; border:1px solid #cad3df; border-radius:9px; background:white; padding:11px 12px; font:inherit; color:var(--ink); outline:none; }
+        input:focus,textarea:focus { border-color:#6d91e3; box-shadow:0 0 0 3px #eaf0ff; }
+        textarea { min-height:280px; resize:vertical; }
+        .hint { margin:6px 0 0; color:var(--muted); font-size:12px; }
+        .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+        code { background:#f0f3f8; border-radius:5px; padding:2px 5px; font-size:12px; }
+        .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+        .source-toggle { display:flex; gap:8px; margin:0 0 14px; }
+        .source-toggle button { flex:1; }
+        .source-toggle button.active { background:var(--blue); color:white; }
+        .source-pane[hidden] { display:none !important; }
+        .sheet-list { display:grid; gap:8px; margin-top:10px; }
+        .sheet-option { display:flex; align-items:center; gap:9px; border:1px solid var(--line); background:#fafbfd; border-radius:9px; padding:10px 12px; margin:0; font-weight:500; }
+        .sheet-option input { width:16px; height:16px; }
+        button { border:0; border-radius:9px; padding:11px 15px; font:inherit; font-weight:700; cursor:pointer; }
+        button:disabled { opacity:.55; cursor:wait; }
+        .primary { background:var(--blue); color:white; }
+        .primary:hover:not(:disabled) { background:var(--blue-dark); }
+        .secondary { color:var(--ink); background:#edf1f6; }
+        .muted { color:var(--muted); }
+        .empty { color:var(--muted); padding:12px 0; }
+        .stat-row { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:18px; }
+        .stat { flex:1 1 92px; border:1px solid var(--line); border-radius:10px; padding:12px; }
+        .stat span { display:block; color:var(--muted); font-size:12px; }
+        .stat strong { display:block; font-size:24px; letter-spacing:-.03em; }
+
+    .sample-contact-select {
+      display: block;
+      width: 100%;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid #cad3df;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .sample-contact-select:focus {
+      outline: 2px solid #6d91e3;
+      outline-offset: 1px;
+    }
+
+    .sample-subject {
+      overflow-wrap: anywhere;
+    }
+
+    .sample-body {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+        .notice { margin:13px 0; border-radius:9px; padding:11px 12px; font-size:13px; background:#f0f3f8; overflow-wrap:anywhere; }
+        .notice.error { background:#fff1f0; color:var(--red); border:1px solid #ffd5d2; }
+        .notice.success { background:#eaf8f0; color:var(--green); border:1px solid #b9e5cb; }
+        .notice.info { background:#edf4ff; border:1px solid #c8d8f5; }
+        .connection { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; padding:13px; background:#fafbfd; border:1px solid var(--line); border-radius:10px; }
+        .connection p { flex:1 1 230px; margin:0; font-size:13px; }
+        .table-wrap { overflow-x:auto; margin-top:16px; }
+        table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+        th,td { text-align:left; padding:10px 9px; border-bottom:1px solid #e6ebf1; }
+        th { color:var(--muted); font-weight:700; background:#f8fafc; }
+        .tag { display:inline-block; border-radius:100px; padding:3px 8px; background:#edf1f6; font-weight:750; font-size:11px; }
+        .tag.created { background:#e5f6ec; color:#176b44; }
+        .tag.failed { background:#fff0ee; color:#a7251b; }
+        .small-note { margin-top:20px; color:var(--muted); font-size:12px; }
+        a { color:var(--blue); }
+        @media (max-width:820px) { main { margin-top:26px; } .layout { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <p class="eyebrow">Spring Boot · Excel · Google Sheets · Gmail API</p>
+    <h1>Gmail Draft Creator</h1>
+    <p class="intro">Import contacts from Excel or selected Google Sheets tabs and create a separate personalized Gmail
+        draft for each person. Every draft includes your resume attachment.</p>
+    <div class="callout"><span aria-hidden="true">ⓘ</span>
+        <div><strong>Drafts only. Nothing is sent.</strong><span>This app creates messages in your Gmail Drafts folder. Review each message in Gmail and click Send yourself. The app has no send-email endpoint or send action.</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <section>
+            <h2>1. Connect Gmail and prepare drafts</h2>
+            <div class="connection">
+                <p id="gmail-status" aria-live="polite">Checking Gmail connection…</p>
+                <button class="secondary" id="connect-button" type="button">Connect Gmail</button>
+            </div>
+            <p class="hint">Google authorization is handled by Google. The app stores your OAuth token locally on this
+                computer.</p>
+
+            <div class="source-toggle" role="group" aria-label="Contact source">
+                <button class="secondary active" id="excel-source-button" type="button" data-source="excel">Excel
+                    workbook
+                </button>
+                <button class="secondary" id="sheets-source-button" type="button" data-source="sheets">Google Sheets
+                </button>
+            </div>
+            <form id="campaign-form">
+                <div id="excel-source" class="source-pane">
+                    <label for="file">Excel file</label>
+                    <input id="file" name="file" type="file" accept=".xlsx,.xls">
+                    <p class="hint">The first worksheet must have headers: Name, Email Address, Company. Upload limit: 5
+                        MB.</p>
+                </div>
+
+                <div id="sheets-source" class="source-pane" hidden>
+                    <label for="spreadsheet-url">Google Sheets URL</label>
+                    <input id="spreadsheet-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/…/edit"
+                           autocomplete="url">
+                    <div class="actions" style="margin-top:10px">
+                        <button class="secondary" id="load-sheets-button" type="button">Load tabs</button>
+                    </div>
+                    <p class="hint">Connect Google first. The spreadsheet must be accessible to the same Google account.
+                        Each selected tab needs Name, Email Address, and Company headers in its first row.</p>
+                    <p id="sheets-status" class="hint" aria-live="polite">Paste your Google Sheets URL and click Load
+                        tabs.</p>
+                    <div id="sheets-tabs" class="sheet-list"></div>
+                </div>
+
+                <label for="subject">Subject</label>
+                <input id="subject" name="subject" type="text"
+                       value="Looking for SDE-1/2 Roles | 3+ YOE | Sagar Srivastava" maxlength="250" required>
+
+                <label for="body">Email body</label>
+                <textarea id="body" name="body" required>Hi {{name}},
+
+I’m reaching out to explore SDE-1/2 opportunities at {{company}}.
+
+I’m currently a Software Development Engineer II at Gemini Solutions, with 3+ years of experience designing and developing backend systems using Java, Spring Boot, and Microservices.
+
+In my current role, I’ve worked on enterprise-scale applications, including a banking onboarding platform supporting 100K+ daily active users (DAU) across multiple countries. I’ve also optimized performance-critical services, reducing API response times from 5 seconds to 200ms through database indexing, caching, and parallel processing.
+
+My technical experience includes Java, Spring Boot, Microservices, Kafka, Redis, PostgreSQL, and AWS. I also have a strong foundation in problem-solving, with a peak LeetCode rating of 1727 and a Top 5.9% finish in a LeetCode Biweekly Contest.
+
+I’ve attached my resume for your consideration. Please let me know if there are any relevant opportunities at {{company}} where my experience could be a good fit.
+
+Thanks & Regards,
+Sagar Srivastava</textarea>
+                <div class="chips"><span
+                        class="muted">Personalization:</span><code>{{name}}</code><code>{{company}}</code><code>{{email}}</code>
+                </div>
+
+                <label for="resume">Resume attachment (optional override)</label>
+                <input id="resume" name="resume" type="file" accept="application/pdf,.pdf">
+                <p class="hint">Sagar_Srivastava_Resume.pdf is bundled and attached automatically. Upload a different
+                    PDF only to replace it. Maximum override size: 10 MB.</p>
+
+                <p class="hint" style="margin-top:14px">Batch limit: <strong id="batch-limit">100</strong> contacts.
+                    Approximate pause between Gmail API calls: <strong id="delay-ms">300</strong> ms.</p>
+                <div class="actions">
+                    <button class="secondary" id="preview-button" type="button">
+                        Preview contacts & message
+                    </button>
+
+                    <button class="primary" id="draft-button" type="button" disabled>
+                        Create Gmail drafts
+                    </button>
+
+                    <button
+                            class="primary"
+                            id="send-button"
+                            type="button"
+                            disabled
+                            style="background:#b42318">
+                        Send Emails
+                    </button>
+                </div>
+            </form>
+            <p class="small-note">Keep this app on your local machine. It has no login screen and should not be exposed
+                to the public internet. Don’t share credentials.json or your local token folder.</p>
+        </section>
+
+        <section>
+            <h2>2. Review contacts and draft results</h2>
+            <div id="output" aria-live="polite"><p class="empty">Connect Google, choose Excel or Google Sheets, and
+                preview the personalized message before creating drafts.</p></div>
+        </section>
+    </div>
+</main>
+<script>
+    const form = document.getElementById('campaign-form');
+    const fileInput = document.getElementById('file');
+    const subjectInput = document.getElementById('subject');
+    const bodyInput = document.getElementById('body');
+    const resumeInput = document.getElementById('resume');
+    const output = document.getElementById('output');
+    const previewButton = document.getElementById('preview-button');
+    const draftButton = document.getElementById('draft-button');
+    const connectButton = document.getElementById('connect-button');
+    const sendButton = document.getElementById('send-button');
+    const gmailStatus = document.getElementById('gmail-status');
+    const excelSourceButton = document.getElementById('excel-source-button');
+    const sheetsSourceButton = document.getElementById('sheets-source-button');
+    const excelSource = document.getElementById('excel-source');
+    const sheetsSource = document.getElementById('sheets-source');
+    const spreadsheetUrlInput = document.getElementById('spreadsheet-url');
+    const loadSheetsButton = document.getElementById('load-sheets-button');
+    const sheetsStatus = document.getElementById('sheets-status');
+    const sheetsTabs = document.getElementById('sheets-tabs');
+    let gmailConnected = false;
+    let selectedSource = 'excel';
+
+
+  function renderSent(data) {
+    output.replaceChildren();
+
+    const stats = document.createElement('div');
+    stats.className = 'stat-row';
+
+    [
+      ['Attempted', data.attempted],
+      ['Sent', data.sent],
+      ['Failed', data.failed]
+    ].forEach(([label, value]) => {
+      const stat = document.createElement('div');
+      stat.className = 'stat';
+      addText('span', label, stat);
+      addText('strong', value, stat);
+      stats.appendChild(stat);
+    });
+
+    output.appendChild(stats);
+
+    notice(
+      `${data.sent} emails sent successfully; ${data.failed} failed. ` +
+      'Check Gmail Sent for the accepted messages.',
+      data.failed === 0 ? 'success' : 'error'
+    );
+
+    appendTable(
+      ['Name', 'Email Address', 'Status', 'Message ID / Details'],
+      data.results.map(r => [
+        r.name,
+        r.email,
+        { label: r.status, className: r.status.toLowerCase() },
+        r.messageId
+          ? `${r.messageId} · ${r.detail}`
+          : r.detail
+      ])
+    );
+  }
+
+  sendButton.addEventListener('click', async () => {
+    if (!gmailConnected) {
+      output.replaceChildren();
+      notice('Connect Gmail before sending emails.', 'error');
+      return;
+    }
+
+    let data;
+
+    try {
+      data = getFormData();
+    } catch (error) {
+      output.replaceChildren();
+      notice(error.message, 'error');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'This will SEND real emails to every validated recipient, ' +
+      'with your resume attached. Emails cannot be recalled reliably. ' +
+      'Have you reviewed the recipients, subject, body and attachment?'
+    );
+
+    if (!confirmed) return;
+
+    setBusy(true);
+    output.replaceChildren();
+
+    try {
+      const response = await post(campaignUrl('send'), data);
+      renderSent(response);
+    } catch (error) {
+      notice(
+        error.message +
+        ' Check Gmail Sent before retrying, to avoid duplicate emails.',
+        'error'
+      );
+    } finally {
+      setBusy(false);
+    }
+  });
+
+
+    function addText(tag, text, parent, className) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.textContent = text ?? '';
+      parent.appendChild(node);
+      return node;
+    }
+    function notice(message, type = '') {
+      return addText('div', message, output, `notice ${type}`.trim());
+    }
+    function appendTable(headers, rows) {
+      const wrap = document.createElement('div'); wrap.className = 'table-wrap';
+      const table = document.createElement('table');
+      const head = document.createElement('thead'); const headerRow = document.createElement('tr');
+      headers.forEach(h => addText('th', h, headerRow)); head.appendChild(headerRow); table.appendChild(head);
+      const tbody = document.createElement('tbody');
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        row.forEach(cell => {
+          const td = document.createElement('td');
+          if (cell && typeof cell === 'object') addText('span', cell.label, td, `tag ${cell.className || ''}`);
+          else td.textContent = cell ?? '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); wrap.appendChild(table); output.appendChild(wrap);
+    }
+    function getFormData() {
+      const data = new FormData();
+      if (selectedSource === 'excel') {
+        if (!fileInput.files || !fileInput.files[0]) throw new Error('Choose an Excel file first.');
+        data.append('file', fileInput.files[0]);
+      } else {
+        const spreadsheetUrl = spreadsheetUrlInput.value.trim();
+        if (!spreadsheetUrl) throw new Error('Paste a Google Sheets URL first.');
+        const selectedTabs = [...sheetsTabs.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+        if (!selectedTabs.length) throw new Error('Load the tabs and select at least one sheet.');
+        data.append('spreadsheetUrl', spreadsheetUrl);
+        selectedTabs.forEach(name => data.append('sheetNames', name));
+      }
+      data.append('subject', subjectInput.value); data.append('body', bodyInput.value);
+      if (resumeInput.files && resumeInput.files[0]) data.append('resume', resumeInput.files[0]);
+      return data;
+    }
+    function campaignUrl(action) {
+      return selectedSource === 'sheets' ? `/api/google-sheets/${action}` : `/api/email-campaigns/${action}`;
+    }
+    function setSource(source) {
+      selectedSource = source;
+      const usingSheets = source === 'sheets';
+      excelSource.hidden = usingSheets;
+      sheetsSource.hidden = !usingSheets;
+      excelSourceButton.classList.toggle('active', !usingSheets);
+      sheetsSourceButton.classList.toggle('active', usingSheets);
+      output.replaceChildren();
+      notice(usingSheets
+        ? 'Paste a Google Sheets URL, load its tabs, and select one or more tabs. The app will only read data and create unsent Gmail drafts.'
+        : 'Upload an Excel workbook to create personalized, unsent Gmail drafts.', 'info');
+    }
+    async function loadSheetsTabs() {
+      const spreadsheetUrl = spreadsheetUrlInput.value.trim();
+      if (!spreadsheetUrl) { sheetsStatus.textContent = 'Paste a Google Sheets URL first.'; return; }
+      loadSheetsButton.disabled = true;
+      loadSheetsButton.textContent = 'Loading…';
+      sheetsStatus.textContent = 'Fetching available tabs…';
+      sheetsTabs.replaceChildren();
+      try {
+        const response = await fetch(`/api/google-sheets/tabs?spreadsheetUrl=${encodeURIComponent(spreadsheetUrl)}`);
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || `Could not load tabs (${response.status}).`);
+        const controls = document.createElement('div');
+        controls.className = 'actions';
+        controls.style.marginTop = '8px';
+        const selectAll = addText('button', 'Select all', controls, 'secondary');
+        selectAll.type = 'button';
+        const clearAll = addText('button', 'Clear', controls, 'secondary');
+        clearAll.type = 'button';
+        sheetsTabs.appendChild(controls);
+        const list = document.createElement('div');
+        list.className = 'sheet-list';
+        result.tabs.forEach(tab => {
+          const label = document.createElement('label');
+          label.className = 'sheet-option';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = tab.title;
+          checkbox.name = 'sheetNames';
+          const title = document.createElement('span');
+          title.textContent = tab.title;
+          label.append(checkbox, title);
+          list.appendChild(label);
+        });
+        sheetsTabs.appendChild(list);
+        selectAll.addEventListener('click', () => list.querySelectorAll('input[type="checkbox"]').forEach(input => input.checked = true));
+        clearAll.addEventListener('click', () => list.querySelectorAll('input[type="checkbox"]').forEach(input => input.checked = false));
+        sheetsStatus.textContent = `Found ${result.tabs.length} tabs in “${result.spreadsheetTitle}”. Select the tabs that contain contacts.`;
+      } catch (error) {
+        sheetsStatus.textContent = error.message;
+      } finally {
+        loadSheetsButton.disabled = false;
+        loadSheetsButton.textContent = 'Load tabs';
+      }
+    }
+    async function post(url, data) {
+      const response = await fetch(url, { method:'POST', body:data });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `Request failed (${response.status}).`);
+      return result;
+    }
+    function setBusy(busy) {
+    previewButton.disabled = busy;
+    draftButton.disabled = busy || !gmailConnected;
+    sendButton.disabled = busy || !gmailConnected;
+    connectButton.disabled = busy;
+    loadSheetsButton.disabled = busy;
+    excelSourceButton.disabled = busy;
+    sheetsSourceButton.disabled = busy;
+
+    previewButton.textContent = busy
+      ? 'Working…'
+      : 'Preview contacts & message';
+
+    draftButton.textContent = busy
+      ? 'Working…'
+      : 'Create Gmail drafts';
+
+    sendButton.textContent = busy
+      ? 'Working…'
+      : 'Send Emails';
+  }
+    function renderPreview(data) {
+      output.replaceChildren();
+      const stats = document.createElement('div'); stats.className = 'stat-row';
+      [['Valid contacts',data.recipientCount],['Issues',data.issueCount],['Batch limit',data.batchLimit]].forEach(([label,value]) => {
+        const stat = document.createElement('div'); stat.className='stat'; addText('span',label,stat); addText('strong',value,stat); stats.appendChild(stat);
+      });
+      output.appendChild(stats);
+      notice(data.issueCount ? 'Fix every listed issue before creating drafts. The draft endpoint blocks invalid batches.' : `All ${data.recipientCount} contacts passed validation. No drafts have been created yet.`, data.issueCount ? 'error' : 'success');
+
+  const previewRecipients = (data.recipients || []).map((recipient, index) => ({
+    ...recipient,
+    personalizedSubject:
+      recipient.personalizedSubject ??
+      (index === 0 ? data.sampleSubject : ''),
+    personalizedBody:
+      recipient.personalizedBody ??
+      (index === 0 ? data.sampleBody : '')
+  }));
+
+  // Fallback in case the backend returns a sample but no recipient list.
+  if (previewRecipients.length === 0 && data.sampleTo) {
+    previewRecipients.push({
+      name: '',
+      email: data.sampleTo,
+      personalizedSubject: data.sampleSubject || '',
+      personalizedBody: data.sampleBody || ''
+    });
+  }
+
+  if (previewRecipients.length > 0) {
+    addText('h3', 'First personalized draft', output);
+
+    const sample = document.createElement('div');
+    sample.className = 'sample';
+
+    addText('label', 'Preview email for', sample);
+
+    const contactSelect = document.createElement('select');
+    contactSelect.className = 'sample-contact-select';
+    contactSelect.setAttribute(
+      'aria-label',
+      'Choose a contact to preview'
+    );
+
+    previewRecipients.forEach((recipient, index) => {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent =
+        `${recipient.name || 'Contact'} — ${recipient.email || ''}`;
+      contactSelect.appendChild(option);
+    });
+
+    sample.appendChild(contactSelect);
+
+    const toLine = addText('p', '', sample);
+    const subjectLine = addText('p', '', sample, 'sample-subject');
+
+    const bodyHeading = addText('p', 'Message:', sample);
+    bodyHeading.style.fontWeight = '700';
+
+    const bodyContent = addText('div', '', sample, 'sample-body');
+
+    function showSelectedDraft() {
+      const index = Number(contactSelect.value);
+      const recipient = previewRecipients[index];
+
+      if (!recipient) return;
+
+      toLine.textContent = `To: ${recipient.email || ''}`;
+
+      subjectLine.textContent =
+        `Subject: ${recipient.personalizedSubject || ''}`;
+
+      bodyContent.textContent =
+        recipient.personalizedBody || '';
+    }
+
+    contactSelect.addEventListener('change', showSelectedDraft);
+
+    output.appendChild(sample);
+
+    // Display the first contact by default.
+    showSelectedDraft();
+  }
+
+
+  if (data.recipients?.length) {
+    addText('h3', 'Personalized preview for all contacts', output);
+
+    appendTable(
+      [
+        'Sheet / Source',
+        'Row',
+        'Name',
+        'Email Address',
+        'Company',
+        'Personalized Subject',
+        'Personalized Body'
+      ],
+      data.recipients.map(r => [
+        r.sourceSheet || 'Excel',
+        r.rowNumber,
+        r.name,
+        r.email,
+        r.company,
+        r.personalizedSubject,
+        r.personalizedBody
+      ])
+    );
+  }
+
+      if (data.issues?.length) { addText('h3','Validation issues',output); appendTable(['Sheet / Source','Row','Problem'],data.issues.map(r => [r.sourceSheet || 'Excel',r.rowNumber,r.reason])); }
+      document.getElementById('batch-limit').textContent = data.batchLimit;
+      document.getElementById('delay-ms').textContent = data.delayMs;
+    }
+    function renderDrafts(data) {
+      output.replaceChildren();
+      const stats = document.createElement('div'); stats.className='stat-row';
+      [['Attempted',data.attempted],['Drafts created',data.created],['Failed',data.failed]].forEach(([label,value]) => {
+        const stat = document.createElement('div'); stat.className='stat'; addText('span',label,stat); addText('strong',value,stat); stats.appendChild(stat);
+      });
+      output.appendChild(stats);
+      if (data.failed === 0) notice(`Created ${data.created} Gmail drafts. Nothing was sent. Open Gmail Drafts to review each message and send manually.`, 'success');
+      else notice(`${data.created} drafts created and ${data.failed} failed. Review the status table before retrying, because retrying may create duplicate drafts.`, 'error');
+      const link = document.createElement('p');
+      const anchor = document.createElement('a'); anchor.href='https://mail.google.com/mail/u/0/#drafts'; anchor.target='_blank'; anchor.rel='noopener noreferrer'; anchor.textContent='Open Gmail Drafts'; link.appendChild(anchor); output.appendChild(link);
+      appendTable(['Name','Email Address','Status','Draft ID / Details'],data.results.map(r => [r.name,r.email,{label:r.status,className:r.status.toLowerCase()},r.draftId ? `${r.draftId} · ${r.detail}` : r.detail]));
+    }
+    async function refreshGmailStatus() {
+      try {
+        const response = await fetch('/api/gmail/status');
+        const data = await response.json();
+        gmailConnected = Boolean(data.connected);
+        gmailStatus.textContent = data.message;
+        gmailStatus.style.color = gmailConnected ? 'var(--green)' : 'var(--muted)';
+        connectButton.textContent = gmailConnected ? 'Reconnect Gmail' : 'Connect Gmail';
+        draftButton.disabled = !gmailConnected;
+        sendButton.disabled = !gmailConnected;
+      } catch (error) {
+        gmailConnected = false; draftButton.disabled = true;
+        sendButton.disabled = !gmailConnected;
+        gmailStatus.textContent = 'Could not check Gmail connection. Is the application running?';
+      }
+    }
+    connectButton.addEventListener('click', () => { window.location.href = '/api/gmail/connect'; });
+    excelSourceButton.addEventListener('click', () => setSource('excel'));
+    sheetsSourceButton.addEventListener('click', () => setSource('sheets'));
+    loadSheetsButton.addEventListener('click', loadSheetsTabs);
+    spreadsheetUrlInput.addEventListener('input', () => {
+      sheetsTabs.replaceChildren();
+      sheetsStatus.textContent = 'URL changed. Click Load tabs to refresh the tab list.';
+    });
+    previewButton.addEventListener('click', async () => {
+      let data;
+      try { data = getFormData(); } catch (error) { output.replaceChildren(); notice(error.message,'error'); return; }
+      setBusy(true); output.replaceChildren();
+      try { renderPreview(await post(campaignUrl('preview'),data)); }
+      catch (error) { notice(error.message,'error'); }
+      finally { setBusy(false); }
+    });
+    draftButton.addEventListener('click', async () => {
+      if (!gmailConnected) { output.replaceChildren(); notice('Connect Gmail before creating drafts.','error'); return; }
+      let data;
+      try { data = getFormData(); } catch (error) { output.replaceChildren(); notice(error.message,'error'); return; }
+      if (!window.confirm('Create unsent Gmail drafts for every validated recipient, with your resume attached? This app will not send them.')) return;
+      setBusy(true); output.replaceChildren();
+      try { renderDrafts(await post(campaignUrl('drafts'),data)); }
+      catch (error) { notice(error.message,'error'); }
+      finally { setBusy(false); }
+    });
+
+    const query = new URLSearchParams(window.location.search);
+    if (query.has('gmailConnected')) { output.replaceChildren(); notice('Gmail connected. No email has been sent.','success'); }
+    if (query.has('gmailError')) { output.replaceChildren(); notice(query.get('gmailError'),'error'); }
+    refreshGmailStatus();
+</script>
+</body>
+</html>

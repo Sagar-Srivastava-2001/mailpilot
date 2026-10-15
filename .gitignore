@@ -1,0 +1,36 @@
+# Build output
+target/
+build/
+out/
+*.class
+
+# IDE/editor settings
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.swp
+*.swo
+
+# Logs
+*.log
+*.tmp
+*.pid
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+credentials.json
+client_secret*.json
+*.pem
+*.p12
+*.key
+*.crt
+tokens/
+**/tokens/
+oauth-tokens/
+**/oauth-tokens/
+
+# Local app data that should stay off GitHub
+src/main/resources/resume/*.pdf
