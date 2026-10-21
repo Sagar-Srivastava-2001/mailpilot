@@ -148,7 +148,7 @@ public class GmailOAuthService {
                 newTransport(),
                 JSON_FACTORY,
                 clientSecrets,
-                List.of(GmailScopes.GMAIL_COMPOSE, SheetsScopes.SPREADSHEETS_READONLY, "openid", "email"))
+                List.of(GmailScopes.GMAIL_COMPOSE, SheetsScopes.SPREADSHEETS, "openid", "email"))
                 .setDataStoreFactory(new FileDataStoreFactory(tokenDirectory.toFile()))
                 .setAccessType("offline")
                 .build();

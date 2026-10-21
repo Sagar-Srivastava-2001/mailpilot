@@ -8,6 +8,7 @@ import com.sagar.emailsender.model.ExcelImportResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -25,20 +26,23 @@ public class CompanyEmailReportService {
 
     private final Map<String, String> sourceEmails;
 
+    private final CompanyEmailSentTracker companyEmailSentTracker;
+
     public CompanyEmailReportService(
             @Value("${email.id-1:}") String email1,
             @Value("${email.id-2:}") String email2,
             @Value("${email.id-3:}") String email3,
-            @Value("${email.id-4:}") String email4
+            @Value("${email.id-4:}") String email4,
+            CompanyEmailSentTracker companyEmailSentTracker
     ) {
-        // Constructor injection ensures values are available
-        // before the source-account map is initialized.
         this.sourceEmails = Map.of(
                 "-1", normalizeEmail(email1),
                 "-2", normalizeEmail(email2),
                 "-3", normalizeEmail(email3),
                 "-4", normalizeEmail(email4)
         );
+
+        this.companyEmailSentTracker = companyEmailSentTracker;
     }
 
     private static String normalizeEmail(String email) {
@@ -84,6 +88,17 @@ public class CompanyEmailReportService {
                                         )
                         )
                         .toList();
+
+        try {
+            companyEmailSentTracker.updateCompanyCounts(reportRows);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "The company report was generated, but the tracking "
+                            + "Google Sheet could not be updated. "
+                            + "Check Google authorization and spreadsheet permissions.",
+                    exception
+            );
+        }
 
         return new CompanyEmailReport(
                 imported.contacts().size(),
