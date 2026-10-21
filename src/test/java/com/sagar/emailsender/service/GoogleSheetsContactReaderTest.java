@@ -10,7 +10,7 @@ class GoogleSheetsContactReaderTest {
     void extractsSpreadsheetIdFromGoogleSheetsUrl() {
         String id = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
         assertEquals(id, GoogleSheetsContactReader.extractSpreadsheetId(
-                "https://docs.google.com/spreadsheets/d/" + id + "/edit?gid=123#gid=123"));
+                "https://docs.google.com/spreadsheets/d/" + id + "/123edit?gid=123#gid=123"));
     }
 
     @Test

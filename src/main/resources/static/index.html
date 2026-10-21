@@ -170,6 +170,14 @@ Sagar Srivastava</textarea>
                 <p class="hint" style="margin-top:14px">Batch limit: <strong id="batch-limit">100</strong> contacts.
                     Approximate pause between Gmail API calls: <strong id="delay-ms">300</strong> ms.</p>
                 <div class="actions">
+                    <button
+                            class="secondary"
+                            id="company-report-button"
+                            type="button"
+                            hidden>
+                        Company email report
+                    </button>
+
                     <button class="secondary" id="preview-button" type="button">
                         Preview contacts & message
                     </button>
@@ -207,6 +215,7 @@ Sagar Srivastava</textarea>
     const resumeInput = document.getElementById('resume');
     const output = document.getElementById('output');
     const previewButton = document.getElementById('preview-button');
+    const companyReportButton = document.getElementById('company-report-button');
     const draftButton = document.getElementById('draft-button');
     const connectButton = document.getElementById('connect-button');
     const sendButton = document.getElementById('send-button');
@@ -334,21 +343,46 @@ Sagar Srivastava</textarea>
       table.appendChild(tbody); wrap.appendChild(table); output.appendChild(wrap);
     }
     function getFormData() {
-      const data = new FormData();
-      if (selectedSource === 'excel') {
-        if (!fileInput.files || !fileInput.files[0]) throw new Error('Choose an Excel file first.');
-        data.append('file', fileInput.files[0]);
-      } else {
-        const spreadsheetUrl = spreadsheetUrlInput.value.trim();
-        if (!spreadsheetUrl) throw new Error('Paste a Google Sheets URL first.');
-        const selectedTabs = [...sheetsTabs.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
-        if (!selectedTabs.length) throw new Error('Load the tabs and select at least one sheet.');
-        data.append('spreadsheetUrl', spreadsheetUrl);
-        selectedTabs.forEach(name => data.append('sheetNames', name));
-      }
-      data.append('subject', subjectInput.value); data.append('body', bodyInput.value);
-      if (resumeInput.files && resumeInput.files[0]) data.append('resume', resumeInput.files[0]);
-      return data;
+        const data = new FormData();
+
+        if (selectedSource === 'excel') {
+            if (!fileInput.files || !fileInput.files[0]) {
+                throw new Error('Choose an Excel file first.');
+            }
+
+            data.append('file', fileInput.files[0]);
+        } else {
+            // Blank URL automatically uses the default spreadsheet.
+            const spreadsheetUrl =
+                spreadsheetUrlInput.value.trim() || 'sagar';
+
+            const selectedTabs = [
+                ...sheetsTabs.querySelectorAll(
+                    'input[type="checkbox"]:checked'
+                )
+            ].map(input => input.value);
+
+            if (selectedTabs.length === 0) {
+                throw new Error(
+                    'Click Load tabs and select at least one sheet.'
+                );
+            }
+
+            data.append('spreadsheetUrl', spreadsheetUrl);
+
+            selectedTabs.forEach(name => {
+                data.append('sheetNames', name);
+            });
+        }
+
+        data.append('subject', subjectInput.value);
+        data.append('body', bodyInput.value);
+
+        if (resumeInput.files && resumeInput.files[0]) {
+            data.append('resume', resumeInput.files[0]);
+        }
+
+        return data;
     }
     function campaignUrl(action) {
       return selectedSource === 'sheets' ? `/api/google-sheets/${action}` : `/api/email-campaigns/${action}`;
@@ -360,55 +394,107 @@ Sagar Srivastava</textarea>
       sheetsSource.hidden = !usingSheets;
       excelSourceButton.classList.toggle('active', !usingSheets);
       sheetsSourceButton.classList.toggle('active', usingSheets);
+      companyReportButton.hidden = !usingSheets;
       output.replaceChildren();
       notice(usingSheets
         ? 'Paste a Google Sheets URL, load its tabs, and select one or more tabs. The app will only read data and create unsent Gmail drafts.'
         : 'Upload an Excel workbook to create personalized, unsent Gmail drafts.', 'info');
     }
     async function loadSheetsTabs() {
-      const spreadsheetUrl = spreadsheetUrlInput.value.trim();
-      if (!spreadsheetUrl) { sheetsStatus.textContent = 'Paste a Google Sheets URL first.'; return; }
-      loadSheetsButton.disabled = true;
-      loadSheetsButton.textContent = 'Loading…';
-      sheetsStatus.textContent = 'Fetching available tabs…';
-      sheetsTabs.replaceChildren();
-      try {
-        const response = await fetch(`/api/google-sheets/tabs?spreadsheetUrl=${encodeURIComponent(spreadsheetUrl)}`);
+    const spreadsheetUrl =
+        spreadsheetUrlInput.value.trim() || 'sagar';
+
+    loadSheetsButton.disabled = true;
+    loadSheetsButton.textContent = 'Loading…';
+    sheetsTabs.replaceChildren();
+
+    sheetsStatus.textContent =
+        'Fetching tabs from Google Sheets…';
+
+    try {
+        const response = await fetch(
+            `/api/google-sheets/tabs?spreadsheetUrl=${
+                encodeURIComponent(spreadsheetUrl)
+            }`
+        );
+
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || `Could not load tabs (${response.status}).`);
+
+        if (!response.ok) {
+            throw new Error(
+                result.error ||
+                `Could not load tabs (${response.status}).`
+            );
+        }
+
+        // Select all / Clear buttons
         const controls = document.createElement('div');
         controls.className = 'actions';
         controls.style.marginTop = '8px';
-        const selectAll = addText('button', 'Select all', controls, 'secondary');
-        selectAll.type = 'button';
-        const clearAll = addText('button', 'Clear', controls, 'secondary');
-        clearAll.type = 'button';
+
+        const selectAllButton = document.createElement('button');
+        selectAllButton.type = 'button';
+        selectAllButton.className = 'secondary';
+        selectAllButton.textContent = 'Select all';
+
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'secondary';
+        clearButton.textContent = 'Clear';
+
+        controls.append(selectAllButton, clearButton);
         sheetsTabs.appendChild(controls);
+
+        // Render sheet checkboxes
         const list = document.createElement('div');
         list.className = 'sheet-list';
+
         result.tabs.forEach(tab => {
-          const label = document.createElement('label');
-          label.className = 'sheet-option';
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.value = tab.title;
-          checkbox.name = 'sheetNames';
-          const title = document.createElement('span');
-          title.textContent = tab.title;
-          label.append(checkbox, title);
-          list.appendChild(label);
+            const label = document.createElement('label');
+            label.className = 'sheet-option';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = 'sheetNames';
+            checkbox.value = tab.title;
+
+            const title = document.createElement('span');
+            title.textContent = tab.title;
+
+            label.append(checkbox, title);
+            list.appendChild(label);
         });
+
         sheetsTabs.appendChild(list);
-        selectAll.addEventListener('click', () => list.querySelectorAll('input[type="checkbox"]').forEach(input => input.checked = true));
-        clearAll.addEventListener('click', () => list.querySelectorAll('input[type="checkbox"]').forEach(input => input.checked = false));
-        sheetsStatus.textContent = `Found ${result.tabs.length} tabs in “${result.spreadsheetTitle}”. Select the tabs that contain contacts.`;
-      } catch (error) {
+
+        // Select every tab
+        selectAllButton.addEventListener('click', () => {
+            list.querySelectorAll('input[type="checkbox"]')
+                .forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+        });
+
+        // Deselect every tab
+        clearButton.addEventListener('click', () => {
+            list.querySelectorAll('input[type="checkbox"]')
+                .forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+        });
+
+        sheetsStatus.textContent =
+            `Found ${result.tabs.length} tabs in ` +
+            `“${result.spreadsheetTitle}”. Select the tabs you need.`;
+
+    } catch (error) {
         sheetsStatus.textContent = error.message;
-      } finally {
+        console.error('Load tabs failed:', error);
+    } finally {
         loadSheetsButton.disabled = false;
         loadSheetsButton.textContent = 'Load tabs';
-      }
     }
+}
     async function post(url, data) {
       const response = await fetch(url, { method:'POST', body:data });
       const result = await response.json().catch(() => ({}));
@@ -416,6 +502,8 @@ Sagar Srivastava</textarea>
       return result;
     }
     function setBusy(busy) {
+    companyReportButton.disabled = busy;
+    companyReportButton.textContent = busy ? 'Generating report…' : 'Company email report';
     previewButton.disabled = busy;
     draftButton.disabled = busy || !gmailConnected;
     sendButton.disabled = busy || !gmailConnected;
@@ -551,6 +639,162 @@ Sagar Srivastava</textarea>
       document.getElementById('batch-limit').textContent = data.batchLimit;
       document.getElementById('delay-ms').textContent = data.delayMs;
     }
+    function renderCompanyReport(data) {
+    output.replaceChildren();
+
+    const stats = document.createElement('div');
+    stats.className = 'stat-row';
+
+    [
+        ['Unique emails', data.totalEmails],
+        ['Companies', data.uniqueCompanies],
+        ['Rows excluded', data.issueCount]
+    ].forEach(([label, value]) => {
+        const stat = document.createElement('div');
+        stat.className = 'stat';
+
+        addText('span', label, stat);
+        addText('strong', value, stat);
+
+        stats.appendChild(stat);
+    });
+
+    output.appendChild(stats);
+
+    notice(
+        `Report generated from Google Sheets. ` +
+        `${data.totalEmails} unique email addresses across ` +
+        `${data.uniqueCompanies} companies.`,
+        'success'
+    );
+
+    if (data.issueCount > 0) {
+        notice(
+            `${data.issueCount} row(s) were excluded due to invalid, ` +
+            'duplicate, or incomplete contact data.',
+            'info'
+        );
+    }
+
+    if (!data.companies || data.companies.length === 0) {
+        addText(
+            'p',
+            'No valid contacts were found in the selected tabs.',
+            output,
+            'empty'
+        );
+        return;
+    }
+
+    const sourceAccountLabel = company => {
+        const accounts = company.sourceAccounts || [];
+
+        return accounts.length
+            ? accounts
+                .map(account => `${account.id}: ${account.email}`)
+                .join('; ')
+            : 'Unknown';
+    };
+
+    addText('h3', 'Company-wise email report', output);
+
+    appendTable(
+        [
+            '#',
+            'Company',
+            'Unique emails',
+            'Source ID / Gmail account',
+            'Share of total'
+        ],
+        data.companies.map((company, index) => [
+            index + 1,
+            company.company,
+            company.emailCount,
+            sourceAccountLabel(company),
+            data.totalEmails
+                ? (
+                    company.emailCount * 100 /
+                    data.totalEmails
+                ).toFixed(1) + '%'
+                : '0.0%'
+        ])
+    );
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const downloadButton = addText(
+        'button',
+        'Download CSV report',
+        actions,
+        'secondary'
+    );
+
+    downloadButton.type = 'button';
+    output.appendChild(actions);
+
+    downloadButton.addEventListener('click', () => {
+        const rows = [
+            [
+                'Company',
+                'Unique emails',
+                'Source IDs',
+                'Source Gmail accounts',
+                'Share of total'
+            ],
+            ...data.companies.map(company => {
+                const accounts = company.sourceAccounts || [];
+
+                const sourceIds = accounts
+                    .map(account => account.id)
+                    .join(', ');
+
+                const sourceEmails = accounts
+                    .map(account => account.email)
+                    .join(', ');
+
+                const share = data.totalEmails
+                    ? (
+                        company.emailCount * 100 /
+                        data.totalEmails
+                    ).toFixed(1) + '%'
+                    : '0.0%';
+
+                return [
+                    company.company,
+                    company.emailCount,
+                    sourceIds,
+                    sourceEmails,
+                    share
+                ];
+            })
+        ];
+
+        const escapeCsv = value =>
+            '"' + String(value ?? '').replaceAll('"', '""') + '"';
+
+        const csv = '\uFEFF' + rows
+            .map(row => row.map(escapeCsv).join(','))
+            .join('\r\n');
+
+        const blob = new Blob(
+            [csv],
+            { type: 'text/csv;charset=utf-8;' }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = 'company-email-report.csv';
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+}
     function renderDrafts(data) {
       output.replaceChildren();
       const stats = document.createElement('div'); stats.className='stat-row';
@@ -595,6 +839,50 @@ Sagar Srivastava</textarea>
       try { renderPreview(await post(campaignUrl('preview'),data)); }
       catch (error) { notice(error.message,'error'); }
       finally { setBusy(false); }
+    });
+    companyReportButton.addEventListener('click', async () => {
+        const spreadsheetUrl =
+            spreadsheetUrlInput.value.trim() || 'sagar';
+
+        const selectedTabs = [
+            ...sheetsTabs.querySelectorAll(
+                'input[type="checkbox"]:checked'
+            )
+        ].map(input => input.value);
+
+        if (selectedTabs.length === 0) {
+            output.replaceChildren();
+            notice(
+                'Click Load tabs and select at least one sheet.',
+                'error'
+            );
+            return;
+        }
+
+        const data = new FormData();
+        data.append('spreadsheetUrl', spreadsheetUrl);
+
+        selectedTabs.forEach(tabName => {
+            data.append('sheetNames', tabName);
+        });
+
+        setBusy(true);
+        output.replaceChildren();
+
+        try {
+            const report = await post(
+                '/api/google-sheets/company-report',
+                data
+            );
+
+            renderCompanyReport(report);
+        } catch (error) {
+            output.replaceChildren();
+            notice(error.message, 'error');
+            console.error('Company report failed:', error);
+        } finally {
+            setBusy(false);
+        }
     });
     draftButton.addEventListener('click', async () => {
       if (!gmailConnected) { output.replaceChildren(); notice('Connect Gmail before creating drafts.','error'); return; }

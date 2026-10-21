@@ -11,6 +11,16 @@ server:
   error:
     include-message: never
 
+google:
+  sheet:
+    url: ${GOOGLE_SHEET_URL:}
+
+email:
+  id-1: ${EMAIL_ID_1:}
+  id-2: ${EMAIL_ID_2:}
+  id-3: ${EMAIL_ID_3:}
+  id-4: ${EMAIL_ID_4:}
+
 app:
   gmail:
     credentials-file: ${GOOGLE_OAUTH_CREDENTIALS:./credentials.json}
